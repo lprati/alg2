@@ -1,0 +1,36 @@
+#define BLOCK_SIZE 16000
+#define empty_char '@'
+
+struct header {
+
+    char status;
+    int topoPilha;
+    char tagCampo1[1];
+    char desCampo1[55];
+    char tagCampo2[1];
+    char desCampo2[55];
+    char tagCampo3[1];
+    char desCampo3[55];
+    char tagCampo4[1];
+    char desCampo4[55];
+    char tagCampo5[1];
+    char desCampo5[55];
+
+};
+
+struct data {
+
+    char removido;
+    int encadeamento;
+    int nroInscricao;
+    double nota;
+    char data[10];
+    int indTamanhoCidade;
+    char *cidade;
+    int indTamanhoEscola;
+    char *nomeEscola;    
+
+};
+
+typedef struct header fileHeader;
+typedef struct data dataReg;
