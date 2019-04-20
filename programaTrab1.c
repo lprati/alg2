@@ -11,17 +11,24 @@ int main(int argc, char** argv) {
     char func_option;
     char* input_filename;
     FILE* input_fp = NULL;
+    FILE* output_fp = NULL;
     dataReg *reg = NULL;
+    int written_bytes = 0;
 
     scanf("%c", &func_option);
     scanf("%s", input_filename);
     
 
     input_fp = fopen(input_filename, "r");
+    output_fp = fopen("teste.bin", "wb");
+
     if (input_fp != NULL) {
         printf("Abrindo arquivo %s para leitura...\n", input_filename);
         do {
             reg = read_next_data_reg(input_fp);
+            if (reg) {
+                write_reg_to_file(reg, output_fp, &written_bytes);
+            }
         } while (reg != NULL);
     }
 
@@ -30,9 +37,21 @@ int main(int argc, char** argv) {
         printf("Não foi possível abrir o arquivo %s para leitura\n", input_filename);
     }
 
+    int num_pag_de_disco = written_bytes / PAGE_SIZE;
+    if ((written_bytes % PAGE_SIZE) > 0)
+        num_pag_de_disco += 1;
+ 
+    printf("Encerrando o programa...\nForam escritas %d pag de disco.", num_pag_de_disco);
+
+    if (reg)
+        free(reg);
+
     fclose(input_fp);
+    fclose(output_fp);
+
     return 0;
 }
+
 
 /* 
  * Função para recuperar um registro de dados a partir do arquivo de entrada csv.
@@ -56,6 +75,10 @@ dataReg * read_next_data_reg(FILE* csv_file_pointer) {
 
     // Aloca estrutura para receber o conteúdo lido do csv
     dataReg *reg = (dataReg*) malloc(sizeof(dataReg));
+    
+    // Valores iniciais padrão para esta parte do projeto
+    reg->removido = '-';
+    reg->encadeamento = -1;
     
     // Tenta capturar a próxima linha do arquivo
     read = getline(&line, &len, csv_file_pointer);
@@ -86,23 +109,17 @@ dataReg * read_next_data_reg(FILE* csv_file_pointer) {
                 {
                     // Campo nroInscricao
                     case 0:
-                        {
-                            
-                            if (field_len == 0) {
-                                // Campo vazio será representado como -1
-                                reg->nroInscricao = -1;
-                            }
-                            else {
-                                // Se leu corretamente, converte para inteiro
-                                reg->nroInscricao = atoi(buffer);
-                            } 
+                        {    
+                            // É garantido que o campo existe. Converte para inteiro
+                            reg->nroInscricao = atoi(buffer);
                         }
+                    break;
 
                     // Campo nota
                     case 1:
                         {
                             if (field_len == 0) {
-                                // Campo vazio será representado como -1.0
+                                // Caso campo vazio será representado como -1.0
                                 reg->nota = -1.0;
                             }
                             else {
@@ -117,7 +134,7 @@ dataReg * read_next_data_reg(FILE* csv_file_pointer) {
                         {
                             if (field_len == 0) {
                                 
-                                // Campo vazio
+                                // Caso campo vazio
                                 reg->data[0] = '\0';
                                 
                                 // Atenção!! int j na inicialização do laço é uma expressão do padrão C/C++ 2011
@@ -152,7 +169,6 @@ dataReg * read_next_data_reg(FILE* csv_file_pointer) {
                                 reg->cidade = (char*) malloc(sizeof(char) * field_len);
                                 strncpy(reg->cidade, buffer, field_len);
                             }
-                            
                        }   
                         break;
 
@@ -179,10 +195,10 @@ dataReg * read_next_data_reg(FILE* csv_file_pointer) {
                         break;
                 }
 
-                // Coloca o \0 apenas para fins de exibição na tela para debug, uma vez que, como existe indicado de tamanho,
-                // não e necessário sinalizar final da string
-                buffer[field_len] = '\0';
-                printf("field %d with lenght %d: %s\n",field_index, field_len, buffer);
+                // // Coloca o \0 apenas para fins de exibição na tela para debug, uma vez que, como existe indicado de tamanho,
+                // // não e necessário sinalizar final da string
+                // buffer[field_len] = '\0';
+                // printf("field %d with lenght %d: %s\n",field_index, field_len, buffer);
 
                 // Reseta contador de tamanho do campo, incrementa índice de campo lido
                 field_len = 0;
@@ -190,7 +206,7 @@ dataReg * read_next_data_reg(FILE* csv_file_pointer) {
             }
         }     
 
-        printf("===================\n");
+        // printf("===================\n");
         
         // Libera memória
         if(line)
@@ -209,4 +225,52 @@ dataReg * read_next_data_reg(FILE* csv_file_pointer) {
         // Retorna NULL
         return NULL;
     }          
+}
+
+
+/*
+ *
+ * 
+ * 
+ */
+void write_header_to_file(fileHeader header, FILE* bin_file_pointer, int *file_size_in_bytes) {
+
+}
+
+/*
+ *
+ * 
+ * 
+ */ 
+void write_reg_to_file(dataReg *to_write, FILE* bin_file_pointer, int *file_size_in_bytes) {
+
+    size_t size_written; 
+
+    size_written = 0;
+    size_written += sizeof(char) * fwrite(&to_write->removido, sizeof(char), 1, bin_file_pointer);
+    size_written += sizeof(int) * fwrite(&to_write->encadeamento, sizeof(int), 1, bin_file_pointer);
+    size_written += sizeof(int) * fwrite(&to_write->nroInscricao, sizeof(int), 1, bin_file_pointer);
+    size_written += sizeof(double) * fwrite(&to_write->nota, sizeof(double), 1, bin_file_pointer);
+    size_written += sizeof(char) * fwrite(&to_write->data, sizeof(char), 10, bin_file_pointer);
+
+    if (to_write->indTamanhoCidade > 0) {
+        size_written += sizeof(int) * fwrite(&to_write->indTamanhoCidade, sizeof(int), 1, bin_file_pointer);
+        size_written += sizeof(char) * fwrite("4", sizeof(char), 1, bin_file_pointer);
+        size_written += sizeof(char) * fwrite(&to_write->cidade, sizeof(char), to_write->indTamanhoCidade, bin_file_pointer);
+    }
+    
+    if (to_write->indTamanhoEscola > 0) {
+        size_written += sizeof(int) * fwrite(&to_write->indTamanhoEscola, sizeof(int), 1, bin_file_pointer);
+        size_written += sizeof(char) * fwrite("4", sizeof(char), 1, bin_file_pointer);
+        size_written += sizeof(char) * fwrite(&to_write->nomeEscola, sizeof(char), to_write->indTamanhoEscola, bin_file_pointer);
+    }
+
+    char c = EMPTY_CHAR;
+    for (int i = (int) size_written; i < REG_SIZE; ++i) {
+        fputc(c, bin_file_pointer);
+        size_written += 1;
+    }
+
+    printf("%zu bytes escritos\n", size_written);
+    *file_size_in_bytes += (int) size_written; 
 }

@@ -1,4 +1,8 @@
+#ifndef programa_trab_1_header
+#define programa_trab_1_header
+
 #define PAGE_SIZE 16000             // Número de bytes da página de disco
+#define REG_SIZE 80                 // Tamanho fixo do registro
 #define EMPTY_CHAR '@'              // Caractere usado para indicar conteúdo vazio no arquivo binário
 #define BUFFER_LEN 256              // Define comprimento padrão para buffers de leitura 
 
@@ -37,5 +41,6 @@ typedef struct header fileHeader;
 typedef struct data dataReg;
 
 dataReg * read_next_data_reg(FILE* csv_file_pointer);
-void write_reg_to_file(dataReg *to_write, FILE* bin_file_pointer);
+void write_reg_to_file(dataReg *to_write, FILE* bin_file_pointer, int *file_size_in_bytes);
 
+#endif
