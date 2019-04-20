@@ -1,5 +1,6 @@
-#define BLOCK_SIZE 16000
-#define empty_char '@'
+#define PAGE_SIZE 16000             // Número de bytes da página de disco
+#define empty_char '@'              // Caractere usado para indicar conteúdo vazio no arquivo binário
+
 
 struct header {
 
@@ -34,3 +35,8 @@ struct data {
 
 typedef struct header fileHeader;
 typedef struct data dataReg;
+
+int read_next_data_reg(FILE* csv_file_pointer);
+//dataReg * read_next_data_reg(FILE* csv_file_pointer);
+void write_reg_to_file(dataReg *to_write, FILE* bin_file_pointer);
+
