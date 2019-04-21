@@ -10,9 +10,12 @@ int main(int argc, char** argv) {
 
     char func_option;
     char* input_filename;
-    FILE* input_fp = NULL;
-    FILE* output_fp = NULL;
+    FILE *input_fp = NULL;
+    FILE *output_fp = NULL;
+
     dataReg *reg = NULL;
+    fileHeader *header = create_initialized_header();
+
     int written_bytes = 0;
 
     scanf("%c", &func_option);
@@ -20,14 +23,16 @@ int main(int argc, char** argv) {
     
 
     input_fp = fopen(input_filename, "r");
-    output_fp = fopen("teste.bin", "wb");
+    output_fp = fopen("teste.bin", "wb+");
 
-    if (input_fp != NULL) {
+    if (input_fp != NULL && output_fp != NULL) {
         printf("Abrindo arquivo %s para leitura...\n", input_filename);
+        printf("Abrindo arquivo teste.txt para escrita...\n");
+        write_header_to_bin(header, output_fp, &written_bytes);
         do {
-            reg = read_next_data_reg(input_fp);
+            reg = read_reg_from_csv(input_fp);
             if (reg) {
-                write_reg_to_file(reg, output_fp, &written_bytes);
+                write_reg_to_bin(reg, output_fp, &written_bytes);
             }
         } while (reg != NULL);
     }
@@ -41,10 +46,16 @@ int main(int argc, char** argv) {
     if ((written_bytes % PAGE_SIZE) > 0)
         num_pag_de_disco += 1;
  
-    printf("Encerrando o programa...\nForam escritas %d pag de disco.", num_pag_de_disco);
+    printf("Encerrando o programa...\nForam escritas %d pag de disco.\n", num_pag_de_disco);
 
     if (reg)
         free(reg);
+
+    if (header)
+        free(header);
+
+    // if (input_filename)
+    //     free(input_filename);
 
     fclose(input_fp);
     fclose(output_fp);
@@ -52,15 +63,14 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-
 /* 
  * Função para recuperar um registro de dados a partir do arquivo de entrada csv.
  * Chamadas subsequentes para o mesmo arquivo recuperam as linhas sequencialmente.
  * 
- * @param FILE* csv_file_pointer:   Ponteiro válido para um arquivo csv. Assume-se que o arquivo está na formatação pré estabelecida para o projeto.
+ * @param FILE *csv_file_pointer:   Ponteiro válido para um arquivo csv. Assume-se que o arquivo está na formatação pré estabelecida para o projeto.
  * @return dataReg* reg:            Ponteiro para uma estrutura dataReg contendo os dados lidos. Caso não tenha sido possível recuperar nenhum dado, retorna NULL.
  */ 
-dataReg * read_next_data_reg(FILE* csv_file_pointer) {
+dataReg * read_reg_from_csv(FILE *csv_file_pointer) {
 
     // Variáveis para leitura da póxima linha do arquivo usando a função getline da stdlib.
     char * line;                    // Recebe o conteúdo da linha
@@ -227,14 +237,135 @@ dataReg * read_next_data_reg(FILE* csv_file_pointer) {
     }          
 }
 
+/*
+ *
+ * 
+ * 
+ */
+fileHeader * create_initialized_header() {
+
+    int fixed_len = 55;
+    int to_fill = 0;
+    size_t string_len;
+
+    fileHeader *new_header;
+    new_header = (fileHeader*) malloc(sizeof(fileHeader));
+
+    new_header->status = '0';
+    new_header->topoPilha = -1;
+
+    // Campo 1 
+
+    // Tag 
+    new_header->tagCampo1 = '1';
+
+    // Escreve descrição
+    strcpy(new_header->desCampo1, "numero de inscricao do participante do ENEM\0");
+   
+    // Calcula espaço preenchido
+    string_len = strlen(new_header->desCampo1) + 1;
+   
+    // Ocupa restante com caracter vazio
+    memset((new_header->desCampo1 + string_len), EMPTY_CHAR, (fixed_len - string_len));
+    // ====================================================================================
+
+    // Campo 2 
+    
+    // Tag 
+    new_header->tagCampo2 = '2';
+
+    // Escreve descrição
+    strcpy(new_header->desCampo2, "nota do participante do ENEM na prova de matematica\0");
+   
+    // Calcula espaço preenchido
+    string_len = strlen(new_header->desCampo2) + 1;
+   
+    // Ocupa restante com caracter vazio
+    memset((new_header->desCampo2 + string_len), EMPTY_CHAR, (fixed_len - string_len));
+    // ====================================================================================
+
+    // Campo 3 
+
+    // Tag 
+    new_header->tagCampo3 = '3';
+
+    // Escreve descrição
+    strcpy(new_header->desCampo3, "data\0");
+   
+    // Calcula espaço preenchido
+    string_len = strlen(new_header->desCampo3) + 1;
+   
+    // Ocupa restante com caracter vazio
+    memset((new_header->desCampo3 + string_len), EMPTY_CHAR, (fixed_len - string_len));
+    // ====================================================================================
+
+    // Campo 4 
+
+    // Tag 
+    new_header->tagCampo4 = '4';
+
+    // Escreve descrição
+    strcpy(new_header->desCampo4, "cidade na qual o participante do ENEM mora\0");
+   
+    // Calcula espaço preenchido
+    string_len = strlen(new_header->desCampo4) + 1;
+   
+    // Ocupa restante com caracter vazio
+    memset((new_header->desCampo4 + string_len), EMPTY_CHAR, (fixed_len - string_len));
+    // ====================================================================================
+
+    // Campo 5 
+
+    // Tag 
+    new_header->tagCampo4 = '5';
+
+    // Escreve descrição
+    strcpy(new_header->desCampo5, "nome da escola de ensino medio\0");
+   
+    // Calcula espaço preenchido
+    string_len = strlen(new_header->desCampo5) + 1;
+   
+    // Ocupa restante com caracter vazio
+    memset((new_header->desCampo5 + string_len), EMPTY_CHAR, (fixed_len - string_len));
+    // ====================================================================================
+
+    return new_header;
+}
+
 
 /*
  *
  * 
  * 
  */
-void write_header_to_file(fileHeader header, FILE* bin_file_pointer, int *file_size_in_bytes) {
+void write_header_to_bin(fileHeader *header, FILE *bin_file_pointer, int *file_size_in_bytes) {
 
+    size_t size_written = 0;
+
+    size_written += sizeof(char) * fwrite(&header->status,    sizeof(char), 1,  bin_file_pointer);
+    size_written += sizeof(int)  * fwrite(&header->topoPilha, sizeof(int),  1,  bin_file_pointer);
+
+    size_written += sizeof(char) * fwrite(&header->tagCampo1, sizeof(char), 1,  bin_file_pointer);
+    size_written += sizeof(char) * fwrite(&header->desCampo1, sizeof(char), 55, bin_file_pointer);
+    
+    size_written += sizeof(char) * fwrite(&header->tagCampo2, sizeof(char), 1,  bin_file_pointer);
+    size_written += sizeof(char) * fwrite(&header->desCampo2, sizeof(char), 55, bin_file_pointer);
+    
+    size_written += sizeof(char) * fwrite(&header->tagCampo3, sizeof(char), 1,  bin_file_pointer);
+    size_written += sizeof(char) * fwrite(&header->desCampo3, sizeof(char), 55, bin_file_pointer);
+    
+    size_written += sizeof(char) * fwrite(&header->tagCampo4, sizeof(char), 1,  bin_file_pointer);
+    size_written += sizeof(char) * fwrite(&header->desCampo4, sizeof(char), 55, bin_file_pointer);
+    
+    size_written += sizeof(char) * fwrite(&header->tagCampo5, sizeof(char), 1,  bin_file_pointer);
+    size_written += sizeof(char) * fwrite(&header->desCampo5, sizeof(char), 55, bin_file_pointer);
+
+    for (int i = size_written; i < PAGE_SIZE; ++i) {
+        fputc(EMPTY_CHAR, bin_file_pointer);
+        size_written++;
+    }
+
+    *file_size_in_bytes += (int) size_written;
 }
 
 /*
@@ -242,7 +373,7 @@ void write_header_to_file(fileHeader header, FILE* bin_file_pointer, int *file_s
  * 
  * 
  */ 
-void write_reg_to_file(dataReg *to_write, FILE* bin_file_pointer, int *file_size_in_bytes) {
+void write_reg_to_bin(dataReg *to_write, FILE *bin_file_pointer, int *file_size_in_bytes) {
 
     size_t size_written; 
 
@@ -253,21 +384,25 @@ void write_reg_to_file(dataReg *to_write, FILE* bin_file_pointer, int *file_size
     size_written += sizeof(double) * fwrite(&to_write->nota, sizeof(double), 1, bin_file_pointer);
     size_written += sizeof(char) * fwrite(&to_write->data, sizeof(char), 10, bin_file_pointer);
 
+    // Se campo é nulo, não escreve nada
     if (to_write->indTamanhoCidade > 0) {
-        size_written += sizeof(int) * fwrite(&to_write->indTamanhoCidade, sizeof(int), 1, bin_file_pointer);
+        // Senão, escreve, na ordem, indicador de tamanho, tag do campo e valor
+        size_written += sizeof(int) * fwrite(&to_write->indTamanhoCidade + 1, sizeof(int), 1, bin_file_pointer);
         size_written += sizeof(char) * fwrite("4", sizeof(char), 1, bin_file_pointer);
         size_written += sizeof(char) * fwrite(&to_write->cidade, sizeof(char), to_write->indTamanhoCidade, bin_file_pointer);
     }
-    
+
+    // Se campo é nulo, não escreve nada    
     if (to_write->indTamanhoEscola > 0) {
-        size_written += sizeof(int) * fwrite(&to_write->indTamanhoEscola, sizeof(int), 1, bin_file_pointer);
-        size_written += sizeof(char) * fwrite("4", sizeof(char), 1, bin_file_pointer);
+        // Senão, escreve, na ordem, indicador de tamanho, tag do campo e valor
+        size_written += sizeof(int) * fwrite(&to_write->indTamanhoEscola + 1, sizeof(int), 1, bin_file_pointer);
+        size_written += sizeof(char) * fwrite("5", sizeof(char), 1, bin_file_pointer);
         size_written += sizeof(char) * fwrite(&to_write->nomeEscola, sizeof(char), to_write->indTamanhoEscola, bin_file_pointer);
     }
 
-    char c = EMPTY_CHAR;
+    // Preenche com EMPTY_CHAR até o tamanho do registro
     for (int i = (int) size_written; i < REG_SIZE; ++i) {
-        fputc(c, bin_file_pointer);
+        fputc(EMPTY_CHAR, bin_file_pointer);
         size_written += 1;
     }
 
