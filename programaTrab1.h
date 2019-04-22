@@ -53,7 +53,7 @@ dataReg * read_reg_from_csv(FILE *csv_file_pointer); // Review
  *
  * 
  */ 
-dataReg * read_reg_from_bin(FILE *bin_file_pointer); 
+void read_reg_from_bin(FILE *bin_file_pointer); 
 
 /* 
  *
@@ -85,6 +85,6 @@ void write_header_to_bin(fileHeader *header, FILE *bin_file_pointer, int *file_s
  */
 void print_reg_to_std(dataReg *to_write);
 
-
+void safely_free_reg(dataReg *reg);
 
 #endif
