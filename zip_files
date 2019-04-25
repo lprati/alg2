@@ -1,0 +1,2 @@
+#! /bin/bash
+zip programaTrab1.zip *.c *.h Makefile

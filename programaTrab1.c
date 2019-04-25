@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
     char func_option;
 
     char *filename;
-    char *output_filename = "ArquivoTrab1si.bin\0"; 
+    char *output_filename = "arquivoTrab1si.bin"; 
 
     FILE *input_fp = NULL;
     FILE *output_fp = NULL;
@@ -34,13 +34,13 @@ int main(int argc, char** argv) {
             output_fp = fopen(output_filename, "wb+");
 
             if (input_fp == NULL) {
-                printf("Falha no carregamento do arquivo de entrada.\n");
-                exit(EXIT_FAILURE);
+                printf("Falha no carregamento do arquivo.");
+                exit(0);
             }    
 
             if (output_fp == NULL) {
-                printf("Falha no carregamento do arquivo de saída.\n");
-                exit(EXIT_FAILURE);
+                printf("Falha no carregamento do arquivo.");
+                exit(0);
             }
         
             if (input_fp != NULL && output_fp != NULL) {
@@ -53,18 +53,17 @@ int main(int argc, char** argv) {
                 // Le cada registro do csv e salva no binário
                 reg = read_reg_from_csv(input_fp);
                 while(reg != NULL) {
-                    print_reg_to_std(reg);
                     write_reg_to_bin(reg, output_fp, &written_bytes);
-                    
                     safely_free_reg(reg);
                     reg = read_reg_from_csv(input_fp);
                 }
-                printf("%s\n", output_filename);
+                printf("%s", output_filename);
             }
 
             
             else {
-                printf("Falha no carregamento do arquivo.\n");
+                printf("Falha no carregamento do arquivo.");
+                exit(0);
             }
             if (reg)
                 free(reg);
@@ -80,8 +79,20 @@ int main(int argc, char** argv) {
         case '2':
         {
             input_fp = fopen(filename, "rb");
-            read_reg_from_bin(input_fp);
-            fclose(input_fp);
+            if (input_fp != NULL) {
+               
+                // Pula primeira linha do csv
+                fseek(input_fp, PAGE_SIZE, SEEK_SET);
+                
+                // Le cada registro do csv e salva no binário
+                while(read_reg_from_bin(input_fp)) {
+                }
+            }
+
+            else {
+                printf("Falha no carregamento do arquivo.");
+                exit(0);
+            }
         }
 
     
@@ -102,137 +113,60 @@ int main(int argc, char** argv) {
  * @param FILE *csv_file_pointer:   Ponteiro válido para um arquivo csv. Assume-se que o arquivo está na formatação pré estabelecida para o projeto.
  * @return dataReg* reg:            Ponteiro para uma estrutura dataReg contendo os dados lidos. Caso não tenha sido possível recuperar nenhum dado, retorna NULL.
  */ 
-void read_reg_from_bin(FILE *bin_file_pointer) {
+int read_reg_from_bin(FILE *bin_file_pointer) {
 
+    size_t read_bytes = 0;
     // Variáveis para leitura da póxima linha do arquivo usando a função getline da stdlib.
-    char chunk[REG_SIZE];                   // Recebe o conteúdo da linha
-    char buffer[BUFFER_LEN];                // Buffer para armazenar temporariamente os valores
-    char aux;
+    dataReg* reg = (dataReg*) malloc(sizeof(dataReg));
+    int indicador_temporario = 0;
+    char tag = '0';
 
-    int reg_index;                          // Indice para percorrer os caracteres da linha
-    int buffer_index;                       // Índice para percorrer os caracteres do buffer
-    int indicador_temporario;
-
-    // Aloca estrutura para receber o conteúdo lido do csv
-    dataReg *reg = NULL;
-    reg = (dataReg*) malloc(sizeof(dataReg));
-
-    // Pula a página do cabeçalho
-    fseek(bin_file_pointer, PAGE_SIZE, SEEK_SET);
-    
-    while (fread(chunk, sizeof(char), 80, bin_file_pointer) != 0) {
+    if (fread(&reg->removido, sizeof(char), 1, bin_file_pointer)){ 
+        read_bytes += 1; 
+        read_bytes += sizeof(int) * fread(&reg->encadeamento, sizeof(int), 1, bin_file_pointer);
+        read_bytes += sizeof(int) * fread(&reg->nroInscricao, sizeof(int), 1, bin_file_pointer);
+        read_bytes += sizeof(double) * fread(&reg->nota, sizeof(double), 1, bin_file_pointer);
+        read_bytes += sizeof(char) * fread(reg->data, sizeof(char), 10, bin_file_pointer);
         
-        reg_index = 0;
+        reg->indTamanhoCidade = 0;
+        reg->cidade = NULL;
+        reg->indTamanhoEscola = 0;
+        reg->nomeEscola = NULL;
 
-        // Nro da inscricao
-        memset(buffer, '\0', BUFFER_LEN);
-        for (buffer_index = 0; buffer_index < 4; buffer_index++) {
-            buffer[buffer_index] = chunk[reg_index];
-            reg_index++;
-        }
-        reg->nroInscricao = atoi(buffer);
-
-        // Nota
-        memset(buffer, '\0', BUFFER_LEN);
-        for (buffer_index = 0; buffer_index < 4; buffer_index++) {
-            buffer[buffer_index] = chunk[reg_index];
-            reg_index++;
-        }
-        reg->nota = atof(buffer);
-
-        // Data
-        memset(buffer, '\0', BUFFER_LEN);
-        for (buffer_index = 0; buffer_index < 10; buffer_index++) {
-            buffer[buffer_index] = chunk[reg_index];
-            reg_index++;
-        }
-        strncpy(reg->data, buffer, 10);
-
-        // Procura pelo próximo campo de tamanho variável
-        memset(buffer, '\0', BUFFER_LEN);
-        for (buffer_index = 0; buffer_index < 4; buffer_index++) {
-            buffer[buffer_index] = chunk[reg_index];
-            reg_index++;
-        }
-
-        // Encontrou um campo
-        if (strncmp(buffer, "@@@@", 4) != 0) {
-            indicador_temporario = atoi(buffer);
+        // for (int i = 0; i < 2; i++) {
             
-            // Verifica se é cidade
-            if (chunk[reg_index++] == '4') {
-                
-                // Verifica o indicador de tamanho
-                memset(buffer, '\0', BUFFER_LEN);
-                for (buffer_index = 0; buffer_index < 4; buffer_index++) {
-                    buffer[buffer_index] = chunk[reg_index];
-                    reg_index++;
-                }
-                reg->indTamanhoCidade = atoi(buffer);
+        //     indicador_temporario = 0;
+        //     tag = '0';
+        //     read_bytes += sizeof(int) * fread(&indicador_temporario, sizeof(int),1, bin_file_pointer);
+            
+        //     if (indicador_temporario != 0) {
+        //         read_bytes += sizeof(char) * fread(&tag, sizeof(char), 1, bin_file_pointer);
+        //         if (tag == '4') {
+        //             reg->indTamanhoCidade = indicador_temporario - 1;
+        //             read_bytes += sizeof(char) * fread(reg->cidade, sizeof(char), reg->indTamanhoCidade, bin_file_pointer);
+        //         }
+        //         if (tag == '5') {
+        //             reg->indTamanhoEscola = indicador_temporario - 1;
+        //             read_bytes += sizeof(char) * fread(reg->nomeEscola, sizeof(char), reg->indTamanhoEscola, bin_file_pointer);
+        //         }
+        //     }
+        // }
+    
+        int deslocamento = 80 - read_bytes;
+        read_bytes += deslocamento;
 
-                // Salva o valor
-                memset(buffer, '\0', BUFFER_LEN);
-                for (buffer_index = 0; buffer_index < reg->indTamanhoCidade; buffer_index++) {
-                    buffer[buffer_index] = chunk[reg_index];
-                    reg_index++;
-                }
-                strncpy(reg->cidade, buffer, reg->indTamanhoCidade);
-
-            }
-            else {
-                 // Verifica o indicador de tamanho
-                memset(buffer, '\0', BUFFER_LEN);
-                for (buffer_index = 0; buffer_index < 4; buffer_index++) {
-                    buffer[buffer_index] = chunk[reg_index];
-                    reg_index++;
-                }
-                reg->indTamanhoEscola = atoi(buffer);
-
-                // Salva o valor
-                memset(buffer, '\0', BUFFER_LEN);
-                for (buffer_index = 0; buffer_index < reg->indTamanhoEscola; buffer_index++) {
-                    buffer[buffer_index] = chunk[reg_index];
-                    reg_index++;
-                }
-                strncpy(reg->nomeEscola, buffer, reg->indTamanhoEscola);
-            }  
-        }
-         // Procura pelo próximo campo de tamanho variável
-        memset(buffer, '\0', BUFFER_LEN);
-        for (buffer_index = 0; buffer_index < 4; buffer_index++) {
-            buffer[buffer_index] = chunk[reg_index];
-            reg_index++;
-        }
-
-        // Encontrou um campo
-        if (strncmp(buffer, "@@@@", 4) != 0) {
-            indicador_temporario = atoi(buffer);
-        
-            // Verifica se é cidade
-            if (chunk[reg_index++] == '5') {
-                 // Verifica o indicador de tamanho
-                memset(buffer, '\0', BUFFER_LEN);
-                for (buffer_index = 0; buffer_index < 4; buffer_index++) {
-                    buffer[buffer_index] = chunk[reg_index];
-                    reg_index++;
-                }
-                reg->indTamanhoEscola = atoi(buffer);
-
-                // Salva o valor
-                memset(buffer, '\0', BUFFER_LEN);
-                for (buffer_index = 0; buffer_index < reg->indTamanhoEscola; buffer_index++) {
-                    buffer[buffer_index] = chunk[reg_index];
-                    reg_index++;
-                }
-                strncpy(reg->nomeEscola, buffer, reg->indTamanhoEscola);
-            }    
-        }
+        fseek(bin_file_pointer, deslocamento, SEEK_CUR);
 
         print_reg_to_std(reg);
         safely_free_reg(reg);
-        reg = (dataReg*) malloc(sizeof(dataReg));
-    }         
+        printf("read %d bytes\n", read_bytes);
+        return read_bytes;
+    }
+    
+    return 0;
 }
+
+
 
 /*
  *
@@ -356,7 +290,7 @@ void write_header_to_bin(fileHeader *header, FILE *bin_file_pointer, int *file_s
     size_written += sizeof(char) * fwrite(&header->tagCampo5, sizeof(char), 1,  bin_file_pointer);
     size_written += sizeof(char) * fwrite(&header->desCampo5, sizeof(char), 55, bin_file_pointer);
 
-    for (int i = (int) size_written; i < PAGE_SIZE; ++i) {
+    while (size_written < PAGE_SIZE) {
         fputc(EMPTY_CHAR, bin_file_pointer);
         size_written += (size_t) 1;
     }
@@ -379,7 +313,7 @@ void write_reg_to_bin(dataReg *to_write, FILE *bin_file_pointer, int *file_size_
     size_written += sizeof(int) * fwrite(&to_write->encadeamento, sizeof(int), 1, bin_file_pointer);
     size_written += sizeof(int) * fwrite(&to_write->nroInscricao, sizeof(int), 1, bin_file_pointer);
     size_written += sizeof(double) * fwrite(&to_write->nota, sizeof(double), 1, bin_file_pointer);
-    size_written += sizeof(char) * fwrite(&to_write->data, sizeof(char), 10, bin_file_pointer);
+    size_written += sizeof(char) * fwrite(to_write->data, sizeof(char), 10, bin_file_pointer);
 
     // Se campo é nulo, não escreve nada
     if (to_write->indTamanhoCidade > 0) {
@@ -471,8 +405,6 @@ dataReg * read_reg_from_csv(FILE *csv_file_pointer) {
     
     // Caso tenha recebido uma linha
     if (read != -1) {
-
-        printf("%s", line);
 
         // Inicializa a contagem de índices
         field_len = 0;
