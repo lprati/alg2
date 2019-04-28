@@ -53,7 +53,7 @@ dataReg * read_reg_from_csv(FILE *csv_file_pointer); // Review
  *
  * 
  */ 
-int read_reg_from_bin(FILE *bin_file_pointer); 
+dataReg * read_reg_from_bin(FILE *bin_file_pointer, int *size_read); 
 
 /* 
  *

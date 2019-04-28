@@ -10,6 +10,9 @@ int main(int argc, char** argv) {
 
     char func_option;
 
+    char *field_name;
+    char *key_to_search;
+
     char *filename;
     char *output_filename = "arquivoTrab1si.bin"; 
 
@@ -18,6 +21,7 @@ int main(int argc, char** argv) {
 
     dataReg *reg = NULL;
     fileHeader *header = create_initialized_header();
+
 
     int written_bytes = 0;
 
@@ -78,15 +82,26 @@ int main(int argc, char** argv) {
 
         case '2':
         {
+            int read_bytes = 0;
             input_fp = fopen(filename, "rb");
             if (input_fp != NULL) {
                
                 // Pula primeira linha do csv
                 fseek(input_fp, PAGE_SIZE, SEEK_SET);
-                
+                read_bytes += PAGE_SIZE;
+
+                reg = read_reg_from_bin(input_fp, &read_bytes);
                 // Le cada registro do csv e salva no binário
-                while(read_reg_from_bin(input_fp)) {
+                while(reg) {
+                    print_reg_to_std(reg);
+                    reg = read_reg_from_bin(input_fp, &read_bytes);
                 }
+                int pag_de_disco = read_bytes / PAGE_SIZE;
+                if (read_bytes % PAGE_SIZE) {
+                    pag_de_disco++;
+                }
+
+                printf("Número de páginas de disco acessadas: %d", pag_de_disco);
             }
 
             else {
@@ -94,10 +109,21 @@ int main(int argc, char** argv) {
                 exit(0);
             }
         }
+            break;
+        case '3':
+        {
+            int i;
+            fflush(stdin);
+            // scanf("%s", field_name);
+            // scanf("%s", key_to_search);
+            scanf("%d", &i);
+            printf("Seaching for value  in field %d", i);
+        }
+        break;
 
     
-    default:
-        break;
+        default:
+            break;
     }
     
 
@@ -113,57 +139,85 @@ int main(int argc, char** argv) {
  * @param FILE *csv_file_pointer:   Ponteiro válido para um arquivo csv. Assume-se que o arquivo está na formatação pré estabelecida para o projeto.
  * @return dataReg* reg:            Ponteiro para uma estrutura dataReg contendo os dados lidos. Caso não tenha sido possível recuperar nenhum dado, retorna NULL.
  */ 
-int read_reg_from_bin(FILE *bin_file_pointer) {
+dataReg * read_reg_from_bin(FILE *bin_file_pointer, int *size_read) {
 
     size_t read_bytes = 0;
     // Variáveis para leitura da póxima linha do arquivo usando a função getline da stdlib.
     dataReg* reg = (dataReg*) malloc(sizeof(dataReg));
     int indicador_temporario = 0;
     char tag = '0';
+    char teste;
 
     if (fread(&reg->removido, sizeof(char), 1, bin_file_pointer)){ 
+
         read_bytes += 1; 
         read_bytes += sizeof(int) * fread(&reg->encadeamento, sizeof(int), 1, bin_file_pointer);
         read_bytes += sizeof(int) * fread(&reg->nroInscricao, sizeof(int), 1, bin_file_pointer);
         read_bytes += sizeof(double) * fread(&reg->nota, sizeof(double), 1, bin_file_pointer);
         read_bytes += sizeof(char) * fread(reg->data, sizeof(char), 10, bin_file_pointer);
-        
+
         reg->indTamanhoCidade = 0;
         reg->cidade = NULL;
         reg->indTamanhoEscola = 0;
         reg->nomeEscola = NULL;
 
-        // for (int i = 0; i < 2; i++) {
-            
-        //     indicador_temporario = 0;
-        //     tag = '0';
-        //     read_bytes += sizeof(int) * fread(&indicador_temporario, sizeof(int),1, bin_file_pointer);
-            
-        //     if (indicador_temporario != 0) {
-        //         read_bytes += sizeof(char) * fread(&tag, sizeof(char), 1, bin_file_pointer);
-        //         if (tag == '4') {
-        //             reg->indTamanhoCidade = indicador_temporario - 1;
-        //             read_bytes += sizeof(char) * fread(reg->cidade, sizeof(char), reg->indTamanhoCidade, bin_file_pointer);
-        //         }
-        //         if (tag == '5') {
-        //             reg->indTamanhoEscola = indicador_temporario - 1;
-        //             read_bytes += sizeof(char) * fread(reg->nomeEscola, sizeof(char), reg->indTamanhoEscola, bin_file_pointer);
-        //         }
-        //     }
-        // }
+        //Verifica se o proximo campo de tamanho variável existe:
+        if ((teste = fgetc(bin_file_pointer)) == EMPTY_CHAR) {
+            ungetc(teste, bin_file_pointer);
+        }
+        else {
+            ungetc(teste, bin_file_pointer);
+            read_bytes += sizeof(int) * fread(&indicador_temporario, sizeof(int), 1, bin_file_pointer);
+            read_bytes += sizeof(char) * fread(&tag, sizeof(char), 1, bin_file_pointer);
+            if (tag == '4') {
+                reg->indTamanhoCidade = indicador_temporario - 2;
+                reg->cidade = (char*) malloc(sizeof(reg->indTamanhoCidade));
+                read_bytes += sizeof(char) * fread(reg->cidade, sizeof(char), reg->indTamanhoCidade + 1, bin_file_pointer);
+
+            }
+            else if (tag == '5') {
+                reg->indTamanhoEscola = indicador_temporario - 2;
+                reg->nomeEscola = (char*) malloc(sizeof(reg->indTamanhoEscola));
+                read_bytes += sizeof(char) * fread(reg->nomeEscola, sizeof(char), reg->indTamanhoEscola + 1, bin_file_pointer);
+
+            }
+            else {
+                printf("Deu ruim\n");
+            }
+        }
+        //Verifica se o proximo campo de tamanho variável existe:
+        if ((teste = fgetc(bin_file_pointer)) == EMPTY_CHAR) {
+            ungetc(teste, bin_file_pointer);
+        }
+        else {
+            ungetc(teste, bin_file_pointer);
+            read_bytes += sizeof(int) * fread(&indicador_temporario, sizeof(int), 1, bin_file_pointer);
+            read_bytes += sizeof(char) * fread(&tag, sizeof(char), 1, bin_file_pointer);
+            if (tag == '4') {
+                reg->indTamanhoCidade = indicador_temporario - 2;
+                reg->cidade = (char*) malloc(sizeof(reg->indTamanhoCidade));
+                read_bytes += sizeof(char) * fread(reg->cidade, sizeof(char), reg->indTamanhoCidade + 1, bin_file_pointer);
+
+            }
+            else if (tag == '5') {
+                reg->indTamanhoEscola = indicador_temporario - 2;
+                reg->nomeEscola = (char*) malloc(sizeof(reg->indTamanhoEscola));
+                read_bytes += sizeof(char) * fread(reg->nomeEscola, sizeof(char), reg->indTamanhoEscola + 1, bin_file_pointer);
+
+            }
+            else {
+                printf("Deu ruim\n");
+            }
+        }    
     
         int deslocamento = 80 - read_bytes;
         read_bytes += deslocamento;
 
         fseek(bin_file_pointer, deslocamento, SEEK_CUR);
-
-        print_reg_to_std(reg);
-        safely_free_reg(reg);
-        printf("read %d bytes\n", read_bytes);
-        return read_bytes;
+        return reg;
     }
     
-    return 0;
+    return NULL;
 }
 
 
@@ -519,7 +573,7 @@ dataReg * read_reg_from_csv(FILE *csv_file_pointer) {
                 // Reseta contador de tamanho do campo, incrementa índice de campo lido
                 field_len = 0;
                 field_index++;
-                memset(&buffer[0], '\0', BUFFER_LEN);
+                memset(buffer, '\0', BUFFER_LEN);
 
             }
         }     
@@ -542,7 +596,7 @@ dataReg * read_reg_from_csv(FILE *csv_file_pointer) {
 void safely_free_reg(dataReg *reg) {
 
     // Evita free em memória não alocada    
-    if (reg != NULL) { 
+    if (reg) { 
 
         if (reg->cidade != NULL){
             free(reg->cidade);
