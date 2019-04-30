@@ -67,11 +67,6 @@ int main() {
                 printf("%s", output_filename);
             }
 
-            
-            else {
-                printf("Falha no carregamento do arquivo.");
-                exit(0);
-            }
             if (reg)
                 free(reg);
 
@@ -117,10 +112,41 @@ int main() {
 
         case '3':
         {
+            int read_bytes = 0;
+            int found = 0;
+
+            input_fp = fopen(argv[1], "rb");
             field_name = argv[2];
             key_to_search = argv[3];
+            
 
-            printf("Seaching for value %s in field %s", key_to_search, field_name);
+            if (input_fp != NULL) {
+                fseek(input_fp, PAGE_SIZE, SEEK_SET);
+                read_bytes += PAGE_SIZE;
+
+                reg = read_reg_from_bin(input_fp, &read_bytes);
+                while(reg) {
+                    if (match_reg(reg, field_name, key_to_search)){
+                        print_reg_to_std(reg);
+                        found++;
+                    }
+                    reg = read_reg_from_bin(input_fp, &read_bytes);
+                    
+                }
+                if (found == 0) {
+                    printf("Registro inexistente.\n");
+                }
+
+                int pag_de_disco = read_bytes / PAGE_SIZE;
+                if (read_bytes % PAGE_SIZE) {
+                    pag_de_disco++;
+                }
+                printf("Número de páginas de disco acessadas: %d", pag_de_disco);
+            }
+            else {
+                printf("Falha no carregamento do arquivo.");
+                exit(0);
+            }
         }
         break;
 
@@ -173,15 +199,15 @@ dataReg * read_reg_from_bin(FILE *bin_file_pointer, int *size_read) {
             read_bytes += sizeof(int) * fread(&indicador_temporario, sizeof(int), 1, bin_file_pointer);
             read_bytes += sizeof(char) * fread(&tag, sizeof(char), 1, bin_file_pointer);
             if (tag == '4') {
-                reg->indTamanhoCidade = indicador_temporario - 2;
+                reg->indTamanhoCidade = indicador_temporario - 1;
                 reg->cidade = (char*) malloc(sizeof(reg->indTamanhoCidade));
-                read_bytes += sizeof(char) * fread(reg->cidade, sizeof(char), reg->indTamanhoCidade + 1, bin_file_pointer);
+                read_bytes += sizeof(char) * fread(reg->cidade, sizeof(char), reg->indTamanhoCidade, bin_file_pointer);
 
             }
             else if (tag == '5') {
-                reg->indTamanhoEscola = indicador_temporario - 2;
+                reg->indTamanhoEscola = indicador_temporario - 1;
                 reg->nomeEscola = (char*) malloc(sizeof(reg->indTamanhoEscola));
-                read_bytes += sizeof(char) * fread(reg->nomeEscola, sizeof(char), reg->indTamanhoEscola + 1, bin_file_pointer);
+                read_bytes += sizeof(char) * fread(reg->nomeEscola, sizeof(char), reg->indTamanhoEscola, bin_file_pointer);
 
             }
             else {
@@ -217,6 +243,8 @@ dataReg * read_reg_from_bin(FILE *bin_file_pointer, int *size_read) {
         read_bytes += deslocamento;
 
         fseek(bin_file_pointer, deslocamento, SEEK_CUR);
+        *size_read += read_bytes;
+
         return reg;
     }
     
@@ -667,7 +695,56 @@ char ** get_args(int *argc, int max_args) {
             (*argc)++;
         }
     }
+    
 
     // Retorna vetor lido
     return argv;
+}
+
+int match_reg(dataReg *reg, char *field_name, char *key_to_search) {
+
+    // Atua como bool
+    int match = 0;
+
+    if (strcmp(field_name, "nroInscricao") == 0) {
+        if (reg->nroInscricao == atoi(key_to_search)) {
+            match = 1;
+        }
+    }
+
+    if (strcmp(field_name, "data") == 0) {
+
+        if (strlen(reg->data) == 10) {
+            if (strcmp(reg->data, key_to_search) == 0) {
+                match = 1;
+            }
+        }
+    }
+
+    if (strcmp(field_name, "nota") == 0) {
+        
+        if (reg->nota > 0.0) {
+            if (reg->nota == atof(key_to_search)) {
+                match = 1;
+            }
+        }
+    }
+
+    if (strcmp(field_name, "cidade") == 0) {
+        if (reg->cidade != NULL) {
+            if (strcmp(reg->cidade, key_to_search) == 0) {
+                match = 1;
+            }
+        }    
+    }
+
+    if (strcmp(field_name, "nomeEscola") == 0) {
+        if(reg->nomeEscola != NULL) {
+            if (strcmp(reg->nomeEscola, key_to_search) == 0) {
+                match = 1;
+            }
+        }
+    }
+
+    return match;
 }

@@ -89,4 +89,6 @@ void safely_free_reg(dataReg *reg);
 
 char ** get_args(int *argc, int max_args);
 
+int match_reg(dataReg *reg, char *field_name, char *key_to_search);
+
 #endif
