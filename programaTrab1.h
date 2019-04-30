@@ -87,4 +87,6 @@ void print_reg_to_std(dataReg *to_write);
 
 void safely_free_reg(dataReg *reg);
 
+char ** get_args(int *argc, int max_args);
+
 #endif

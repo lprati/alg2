@@ -6,7 +6,7 @@
 // Bibliotecas criadas para solucionar o trabalho
 #include "programaTrab1.h"
 
-int main(int argc, char** argv) {
+int main() {
 
     char func_option;
 
@@ -22,17 +22,20 @@ int main(int argc, char** argv) {
     dataReg *reg = NULL;
     fileHeader *header = create_initialized_header();
 
-
     int written_bytes = 0;
 
-    scanf("%c", &func_option);
-    scanf("%s", filename);
-    
+    int argc = 0;
+    char **argv;
 
+    argv = get_args(&argc, 4);
+
+    func_option = argv[0][0];
     switch (func_option)
     {
         case '1':
         {
+
+            filename = argv[1];
 
             input_fp = fopen(filename, "r");
             output_fp = fopen(output_filename, "wb+");
@@ -82,6 +85,7 @@ int main(int argc, char** argv) {
 
         case '2':
         {
+            filename = argv[1];
             int read_bytes = 0;
             input_fp = fopen(filename, "rb");
             if (input_fp != NULL) {
@@ -109,15 +113,14 @@ int main(int argc, char** argv) {
                 exit(0);
             }
         }
-            break;
+        break;
+
         case '3':
         {
-            int i;
-            fflush(stdin);
-            // scanf("%s", field_name);
-            // scanf("%s", key_to_search);
-            scanf("%d", &i);
-            printf("Seaching for value  in field %d", i);
+            field_name = argv[2];
+            key_to_search = argv[3];
+
+            printf("Seaching for value %s in field %s", key_to_search, field_name);
         }
         break;
 
@@ -606,4 +609,65 @@ void safely_free_reg(dataReg *reg) {
         }
         free(reg);
     }
+}
+
+char ** get_args(int *argc, int max_args) {
+
+    char buffer[256];           // Armazena a linha da entrada
+    char token[32];             // Armazena temporariamente cada argumento da linha
+ 
+    // Inicializa os buffers
+    memset(token, '\0', sizeof(token));
+    memset(buffer, '\0', sizeof(buffer));
+
+    // Cria vetor de strings para retornar
+    char **argv = (char **) malloc(sizeof(char*) * 4);
+    
+    // Inicializa cada posição com NULL
+    for (int i = 0; i < max_args; ++i) {
+        argv[i] = NULL;
+    }
+
+    // Seta contador de argumentos em zero
+    *argc = 0;
+
+    // Pega linha da entrada e salva em "buffer"
+    fgets(buffer, sizeof(buffer), stdin);
+
+    // Contador para o tamanho de cada argumento
+    int j = 0;
+
+    // Percorre a linha obtida
+    for (int i = 0; i < strlen(buffer); ++i) {
+        
+        // Se não for um espaço ou um new line
+        if ((buffer[i] != ' ') && (buffer[i] != '\n')) {
+            
+            // Armazena o caracter no token
+            token[j] = buffer[i];
+            j++;
+        } 
+
+        // Quando encontra um espaço ou new line
+        else {
+            
+            // Aloca string no vetor de retorno
+            argv[*argc] = (char *) malloc(strlen(token));
+
+            // Copia o token para a posição adequada
+            memcpy(argv[*argc], token, strlen(token));
+
+            // Reseta o conteúdo do token
+            memset(token, '\0', sizeof(token));
+
+            // Atualiza contador do token. 
+            j = 0;
+
+            // Incrementa número de argumentos lidos
+            (*argc)++;
+        }
+    }
+
+    // Retorna vetor lido
+    return argv;
 }
